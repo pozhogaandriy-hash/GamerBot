@@ -3,7 +3,7 @@ import stripe
 from flask import Flask, session, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
-
+#
 # Завантаження змінних середовища
 load_dotenv()
 
