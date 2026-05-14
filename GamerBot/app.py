@@ -170,6 +170,7 @@ def create_checkout_session():
                 "quantity": 1,
             }],
             mode="payment",
+            allow_promotion_codes=True,
             success_url=f"{FRONTEND_URL}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{FRONTEND_URL}/payment-cancel",
             metadata={
@@ -181,7 +182,7 @@ def create_checkout_session():
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+    
 @app.route("/stripe/webhook", methods=["POST"])
 def stripe_webhook():
     payload = request.get_data(as_text=True)
