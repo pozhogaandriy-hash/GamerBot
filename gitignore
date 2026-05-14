@@ -1,0 +1,35 @@
+# Секрети та конфігурації
+.env
+.env.*
+
+# Логи
+*.log
+bot.log
+
+# JSON дані (не завантажуємо на GitHub)
+premium.json
+state.json
+count_state.json
+data.json
+ai_channels.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Файли з токенами та ключами
+main.py  # якщо там токен бота (перевір)
+run.py   # якщо там секрети
+
+# Словники (великі файли)
+ukrainian.txt
+english.txt
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
