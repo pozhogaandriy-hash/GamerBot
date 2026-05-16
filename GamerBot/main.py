@@ -985,6 +985,62 @@ def activate_premium():
     send_premium_dm_sync(discord_id)
 
     return {"success": True}
+
+
+# ========== АВТОМАТИЧНА ПЕРЕВІРКА PREMIUM ==========
+from premium import get_all_premium_users
+
+# Зберігаємо ID користувачів, яким вже надіслали DM
+sent_dm_users = set()
+
+async def send_premium_dm(discord_id: str):
+    """Надсилає DM користувачу про активацію Premium"""
+    try:
+        user = await bot.fetch_user(int(discord_id))
+        embed = discord.Embed(
+            title="🌟 Premium Activated!",
+            description="Дякуємо за покупку Premium!\n\n"
+                       "Тепер вам доступні всі преміум-функції бота.\n"
+                       "Спробуйте: `/premium_test`",
+            color=discord.Color.gold()
+        )
+        await user.send(embed=embed)
+        logging.info(f"✅ Premium DM sent to {discord_id}")
+        return True
+    except Exception as e:
+        logging.error(f"❌ Failed to send DM to {discord_id}: {e}")
+        return False
+
+@tasks.loop(seconds=10)
+async def check_new_premium_users():
+    """Кожні 10 секунд перевіряє нових premium користувачів"""
+    global sent_dm_users
+    
+    try:
+        # Отримуємо всіх premium користувачів
+        premium_users = get_all_premium_users()
+        current_premium_ids = set(premium_users.keys())
+        
+        # Знаходимо нових (яким ще не надсилали DM)
+        new_users = current_premium_ids - sent_dm_users
+        
+        for user_id in new_users:
+            logging.info(f"🎉 New premium user detected: {user_id}")
+            await send_premium_dm(user_id)
+            sent_dm_users.add(user_id)
+            
+    except Exception as e:
+        logging.error(f"Error checking premium users: {e}")
+
+# Запускаємо перевірку при старті бота
+@bot.event
+async def on_ready():
+    # ... твій існуючий код ...
+    
+    # Запускаємо перевірку premium
+    if not check_new_premium_users.is_running():
+        check_new_premium_users.start()
+        logging.info("🔄 Premium checker started (every 10 seconds)")
 # ---------------- Run ----------------
 if __name__ == "__main__":
     if not TOKEN:
