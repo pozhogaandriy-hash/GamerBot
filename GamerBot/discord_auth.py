@@ -59,8 +59,21 @@ def discord_callback():
     if not user.get("id"):
         return redirect(f"{FRONTEND_URL}/login?error=no_user")
     
-    session["discord_id"] = user["id"]
+    # Отримуємо аватарку
+    avatar_hash = user.get("avatar")
+    user_id = user.get("id")
+    
+    # Формуємо URL аватарки
+    if avatar_hash:
+        avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png"
+    else:
+        # Дефолтна аватарка (за останніми цифрами ID)
+        default_avatar = int(user_id) >> 22 & 0x3F
+        avatar_url = f"https://cdn.discordapp.com/embed/avatars/{default_avatar}.png"
+    
+    session["discord_id"] = user_id
     session["username"] = user.get("username", "Unknown")
+    session["avatar_url"] = avatar_url
     
     return redirect(f"{FRONTEND_URL}/?login=success")
 
@@ -68,4 +81,5 @@ def discord_callback():
 def logout():
     session.pop("discord_id", None)
     session.pop("username", None)
+    session.pop("avatar_url", None)
     return redirect(f"{FRONTEND_URL}/")
