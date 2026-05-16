@@ -3,7 +3,7 @@ import stripe
 from flask import Flask, session, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
-#
+
 # Завантаження змінних середовища
 load_dotenv()
 
@@ -204,8 +204,18 @@ def stripe_webhook():
         return jsonify({"error": "Invalid signature"}), 400
     
     if event["type"] == "checkout.session.completed":
+        # Отримуємо session об'єкт
         session_obj = event["data"]["object"]
-        discord_id = session_obj.get("metadata", {}).get("discord_id")
+        
+        # Безпечне отримання discord_id
+        if isinstance(session_obj, dict):
+            metadata = session_obj.get("metadata", {})
+            discord_id = metadata.get("discord_id")
+        else:
+            # Якщо це Stripe об'єкт, конвертуємо в dict
+            session_dict = session_obj.to_dict()
+            metadata = session_dict.get("metadata", {})
+            discord_id = metadata.get("discord_id")
         
         if discord_id:
             add_premium(discord_id, source="stripe")
@@ -216,7 +226,6 @@ def stripe_webhook():
                 send_premium_dm_callback(discord_id)
     
     return jsonify({"success": True})
-
 # ========== РЕЄСТРАЦІЯ BLUEPRINT ==========
 app.register_blueprint(discord_auth)
 
