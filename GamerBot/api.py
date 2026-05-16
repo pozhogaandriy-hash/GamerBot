@@ -21,6 +21,8 @@ def me():
         return jsonify({
             "logged_in": False,
             "discord_id": None,
+            "username": None,
+            "avatar_url": None,
             "premium": False
         })
     
