@@ -191,39 +191,59 @@ def stripe_webhook():
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
     stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
     
+    print(f"[DEBUG] Webhook received. Signature: {sig_header[:50]}...")
+    
     if not STRIPE_WEBHOOK_SECRET:
+        print("[ERROR] STRIPE_WEBHOOK_SECRET not set")
         return jsonify({"error": "Webhook secret not configured"}), 500
     
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
-    except ValueError:
+        print(f"[DEBUG] Event type: {event['type']}")
+    except ValueError as e:
+        print(f"[ERROR] Invalid payload: {e}")
         return jsonify({"error": "Invalid payload"}), 400
-    except stripe.error.SignatureVerificationError:
+    except stripe.error.SignatureVerificationError as e:
+        print(f"[ERROR] Invalid signature: {e}")
         return jsonify({"error": "Invalid signature"}), 400
     
-    if event["type"] == "checkout.session.completed":
+    # Перевіряємо тип події
+    event_type = event.get("type")
+    print(f"[DEBUG] Event type: {event_type}")
+    
+    if event_type == "checkout.session.completed":
+        print("[DEBUG] Checkout session completed!")
+        
         # Отримуємо session об'єкт
         session_obj = event["data"]["object"]
+        print(f"[DEBUG] Session object type: {type(session_obj)}")
         
         # Безпечне отримання discord_id
-        if isinstance(session_obj, dict):
-            metadata = session_obj.get("metadata", {})
-            discord_id = metadata.get("discord_id")
-        else:
-            # Якщо це Stripe об'єкт, конвертуємо в dict
-            session_dict = session_obj.to_dict()
-            metadata = session_dict.get("metadata", {})
-            discord_id = metadata.get("discord_id")
-        
-        if discord_id:
-            add_premium(discord_id, source="stripe")
-            print(f"[STRIPE] Premium activated for {discord_id}")
+        try:
+            if hasattr(session_obj, 'to_dict'):
+                session_dict = session_obj.to_dict()
+            else:
+                session_dict = session_obj
             
-            # Відправляємо DM
-            if send_premium_dm_callback:
-                send_premium_dm_callback(discord_id)
+            discord_id = session_dict.get("metadata", {}).get("discord_id")
+            print(f"[DEBUG] Discord ID from metadata: {discord_id}")
+            
+            if discord_id:
+                add_premium(discord_id, source="stripe")ф
+                print(f"[STRIPE] ✅ Premium activated for {discord_id}")
+                
+                if send_premium_dm_callback:
+                    send_premium_dm_callback(discord_id)
+            else:
+                print("[WARNING] No discord_id in metadata")
+        except Exception as e:
+            print(f"[ERROR] Failed to extract discord_id: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print(f"[DEBUG] Ignoring event type: {event_type}")
     
     return jsonify({"success": True})
 # ========== РЕЄСТРАЦІЯ BLUEPRINT ==========
