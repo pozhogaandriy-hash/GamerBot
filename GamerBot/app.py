@@ -9,7 +9,7 @@ load_dotenv()
 
 # Імпорт blueprint
 from discord_auth import discord_auth
-from stripe_api import stripe_api
+
 
 # Ініціалізація Flask
 app = Flask(__name__)
