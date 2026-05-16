@@ -88,3 +88,7 @@ def premium_users():
     
     users = get_all_premium_users()
     return jsonify({"premium_users": users})
+
+@app.route("/test", methods=["GET"])
+def test():
+    return {"version": "2.0", "avatar_support": True}
