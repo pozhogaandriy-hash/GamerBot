@@ -42,4 +42,4 @@ def remove_premium(discord_id):
 
 def get_all_premium_users():
     data = load_premium()
-    return [int(uid) for uid, info in data.items() if info.get("premium")]
+    return data  # ← повертає словник
