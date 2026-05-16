@@ -191,8 +191,6 @@ def stripe_webhook():
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
     stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
     
-    print(f"[DEBUG] Webhook received. Signature: {sig_header[:50]}...")
-    
     if not STRIPE_WEBHOOK_SECRET:
         print("[ERROR] STRIPE_WEBHOOK_SECRET not set")
         return jsonify({"error": "Webhook secret not configured"}), 500
@@ -201,7 +199,6 @@ def stripe_webhook():
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
-        print(f"[DEBUG] Event type: {event['type']}")
     except ValueError as e:
         print(f"[ERROR] Invalid payload: {e}")
         return jsonify({"error": "Invalid payload"}), 400
@@ -209,8 +206,8 @@ def stripe_webhook():
         print(f"[ERROR] Invalid signature: {e}")
         return jsonify({"error": "Invalid signature"}), 400
     
-    # Перевіряємо тип події
-    event_type = event.get("type")
+    # Отримуємо тип події (правильно для Stripe об'єкта)
+    event_type = event["type"]  # ← Так правильно!
     print(f"[DEBUG] Event type: {event_type}")
     
     if event_type == "checkout.session.completed":
@@ -218,16 +215,17 @@ def stripe_webhook():
         
         # Отримуємо session об'єкт
         session_obj = event["data"]["object"]
-        print(f"[DEBUG] Session object type: {type(session_obj)}")
         
-        # Безпечне отримання discord_id
+        # Отримуємо discord_id з metadata
         try:
+            # Конвертуємо Stripe об'єкт в dict, якщо потрібно
             if hasattr(session_obj, 'to_dict'):
                 session_dict = session_obj.to_dict()
             else:
                 session_dict = session_obj
             
-            discord_id = session_dict.get("metadata", {}).get("discord_id")
+            metadata = session_dict.get("metadata", {})
+            discord_id = metadata.get("discord_id")
             print(f"[DEBUG] Discord ID from metadata: {discord_id}")
             
             if discord_id:
@@ -242,8 +240,6 @@ def stripe_webhook():
             print(f"[ERROR] Failed to extract discord_id: {e}")
             import traceback
             traceback.print_exc()
-    else:
-        print(f"[DEBUG] Ignoring event type: {event_type}")
     
     return jsonify({"success": True})
 # ========== РЕЄСТРАЦІЯ BLUEPRINT ==========
