@@ -231,7 +231,7 @@ def stripe_webhook():
             print(f"[DEBUG] Discord ID from metadata: {discord_id}")
             
             if discord_id:
-                add_premium(discord_id, source="stripe")ф
+                add_premium(discord_id, source="stripe")
                 print(f"[STRIPE] ✅ Premium activated for {discord_id}")
                 
                 if send_premium_dm_callback:
