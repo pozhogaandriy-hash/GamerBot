@@ -1018,8 +1018,15 @@ async def check_new_premium_users():
     
     try:
         # Отримуємо всіх premium користувачів
-        premium_users = get_all_premium_users()
-        current_premium_ids = set(premium_users.keys())
+        premium_data = get_all_premium_users()
+        
+        # Обробка різних форматів
+        if isinstance(premium_data, list):
+            current_premium_ids = set(str(uid) for uid in premium_data)
+        elif isinstance(premium_data, dict):
+            current_premium_ids = set(premium_data.keys())
+        else:
+            current_premium_ids = set()
         
         # Знаходимо нових (яким ще не надсилали DM)
         new_users = current_premium_ids - sent_dm_users
