@@ -28,6 +28,7 @@ def me():
         "logged_in": True,
         "discord_id": discord_id,
         "username": session.get("username", "Unknown"),
+        "avatar_url": session.get("avatar_url"),
         "premium": is_premium(discord_id)
     })
 
