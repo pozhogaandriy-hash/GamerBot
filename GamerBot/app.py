@@ -185,60 +185,76 @@ def create_checkout_session():
     
 @app.route("/stripe/webhook", methods=["POST"])
 def stripe_webhook():
+    print("[WEBHOOK] === Webhook received! ===")
+    
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
+    
+    print(f"[WEBHOOK] Payload length: {len(payload)}")
+    print(f"[WEBHOOK] Signature: {sig_header[:50] if sig_header else 'None'}...")
     
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
     stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
     
     if not STRIPE_WEBHOOK_SECRET:
-        print("[ERROR] STRIPE_WEBHOOK_SECRET not set")
+        print("[WEBHOOK ERROR] STRIPE_WEBHOOK_SECRET not set")
         return jsonify({"error": "Webhook secret not configured"}), 500
     
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
+        print(f"[WEBHOOK] Event constructed successfully")
     except ValueError as e:
-        print(f"[ERROR] Invalid payload: {e}")
+        print(f"[WEBHOOK ERROR] Invalid payload: {e}")
         return jsonify({"error": "Invalid payload"}), 400
     except stripe.error.SignatureVerificationError as e:
-        print(f"[ERROR] Invalid signature: {e}")
+        print(f"[WEBHOOK ERROR] Invalid signature: {e}")
         return jsonify({"error": "Invalid signature"}), 400
     
-    # Отримуємо тип події (ТУТ визначаємо event_type)
+    # Отримуємо тип події
     event_type = event["type"]
-    print(f"[DEBUG] Event type: {event_type}")
+    print(f"[WEBHOOK] Event type: {event_type}")
     
     if event_type == "checkout.session.completed":
-        print("[DEBUG] Checkout session completed!")
+        print("[WEBHOOK] ✅ Checkout session completed!")
         
         # Отримуємо session об'єкт
         session_obj = event["data"]["object"]
+        print(f"[WEBHOOK] Session object type: {type(session_obj)}")
         
         # Отримуємо discord_id з metadata
         try:
             if hasattr(session_obj, 'to_dict'):
                 session_dict = session_obj.to_dict()
+                print("[WEBHOOK] Converted Stripe object to dict")
             else:
                 session_dict = session_obj
+                print("[WEBHOOK] Session is already dict")
             
             metadata = session_dict.get("metadata", {})
+            print(f"[WEBHOOK] Metadata: {metadata}")
+            
             discord_id = metadata.get("discord_id")
-            print(f"[DEBUG] Discord ID from metadata: {discord_id}")
+            print(f"[WEBHOOK] Discord ID: {discord_id}")
             
             if discord_id:
                 add_premium(discord_id, source="stripe")
                 print(f"[STRIPE] ✅ Premium activated for {discord_id}")
                 
                 if send_premium_dm_callback:
+                    print("[WEBHOOK] Calling send_premium_dm_callback")
                     send_premium_dm_callback(discord_id)
+                else:
+                    print("[WEBHOOK] send_premium_dm_callback is None")
             else:
-                print("[WARNING] No discord_id in metadata")
+                print("[WEBHOOK] WARNING: No discord_id in metadata")
         except Exception as e:
-            print(f"[ERROR] Failed to extract discord_id: {e}")
+            print(f"[WEBHOOK ERROR] Failed to extract discord_id: {e}")
             import traceback
             traceback.print_exc()
+    else:
+        print(f"[WEBHOOK] Ignoring event type: {event_type}")
     
     return jsonify({"success": True})
 # ========== РЕЄСТРАЦІЯ BLUEPRINT ==========
