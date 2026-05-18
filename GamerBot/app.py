@@ -206,8 +206,8 @@ def stripe_webhook():
         print(f"[ERROR] Invalid signature: {e}")
         return jsonify({"error": "Invalid signature"}), 400
     
-    # Отримуємо тип події (правильно для Stripe об'єкта)
-    event_type = event["type"]  # ← Так правильно!
+    # Отримуємо тип події (ТУТ визначаємо event_type)
+    event_type = event["type"]
     print(f"[DEBUG] Event type: {event_type}")
     
     if event_type == "checkout.session.completed":
@@ -218,7 +218,6 @@ def stripe_webhook():
         
         # Отримуємо discord_id з metadata
         try:
-            # Конвертуємо Stripe об'єкт в dict, якщо потрібно
             if hasattr(session_obj, 'to_dict'):
                 session_dict = session_obj.to_dict()
             else:
