@@ -1,45 +1,73 @@
-import json
 import os
+import json
+import psycopg2
 from datetime import datetime
 
-PREMIUM_FILE = "premium.json"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-def load_premium():
-    if not os.path.exists(PREMIUM_FILE):
-        with open(PREMIUM_FILE, "w") as f:
-            json.dump({}, f)
-    with open(PREMIUM_FILE, "r") as f:
-        return json.load(f)
+def get_db():
+    return psycopg2.connect(DATABASE_URL)
 
-def save_premium(data):
-    with open(PREMIUM_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS premium (
+            discord_id TEXT PRIMARY KEY,
+            premium BOOLEAN DEFAULT TRUE,
+            activated_at TIMESTAMP,
+            source TEXT
+        )
+    ''')
+    conn.commit()
+    cur.close()
+    conn.close()
 
 def add_premium(discord_id, source="stripe"):
-    data = load_premium()
-    data[str(discord_id)] = {
-        "premium": True,
-        "activated_at": datetime.utcnow().isoformat(),
-        "source": source
-    }
-    save_premium(data)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO premium (discord_id, premium, activated_at, source)
+        VALUES (%s, TRUE, %s, %s)
+        ON CONFLICT (discord_id) DO UPDATE SET
+            premium = TRUE,
+            activated_at = EXCLUDED.activated_at,
+            source = EXCLUDED.source
+    ''', (str(discord_id), datetime.utcnow(), source))
+    conn.commit()
+    cur.close()
+    conn.close()
     return True
 
 def is_premium(discord_id):
-    data = load_premium()
-    user = data.get(str(discord_id))
-    if not user:
-        return False
-    return user.get("premium", False)
-
-def remove_premium(discord_id):
-    data = load_premium()
-    if str(discord_id) in data:
-        del data[str(discord_id)]
-        save_premium(data)
-        return True
-    return False
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT premium FROM premium WHERE discord_id = %s', (str(discord_id),))
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+    return result is not None and result[0]
 
 def get_all_premium_users():
-    data = load_premium()
-    return data  # ← повертає словник
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT discord_id FROM premium WHERE premium = TRUE')
+    users = {row[0]: {"premium": True} for row in cur.fetchall()}
+    cur.close()
+    conn.close()
+    return users
+
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS premium (
+            discord_id TEXT PRIMARY KEY,
+            premium BOOLEAN DEFAULT TRUE,
+            activated_at TIMESTAMP,
+            source TEXT
+        )
+    ''')
+    conn.commit()
+    cur.close()
+    conn.close()
