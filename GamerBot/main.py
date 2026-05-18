@@ -233,6 +233,10 @@ async def on_ready():
         create_server_file(g)
 
     check_server_files.start()
+        # Запускаємо перевірку premium
+    if not check_new_premium_users.is_running():
+        check_new_premium_users.start()
+        logging.info("🔄 Premium checker started (every 10 seconds)")
 
 @bot.event
 async def on_guild_join(guild: discord.Guild):
