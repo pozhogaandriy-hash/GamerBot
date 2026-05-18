@@ -190,9 +190,6 @@ def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
     
-    print(f"[WEBHOOK] Payload length: {len(payload)}")
-    print(f"[WEBHOOK] Signature: {sig_header[:50] if sig_header else 'None'}...")
-    
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
     stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
     
@@ -204,7 +201,7 @@ def stripe_webhook():
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
-        print(f"[WEBHOOK] Event constructed successfully")
+        print("[WEBHOOK] Event constructed successfully")
     except ValueError as e:
         print(f"[WEBHOOK ERROR] Invalid payload: {e}")
         return jsonify({"error": "Invalid payload"}), 400
@@ -221,34 +218,36 @@ def stripe_webhook():
         
         # Отримуємо session об'єкт
         session_obj = event["data"]["object"]
-        print(f"[WEBHOOK] Session object type: {type(session_obj)}")
         
-        # Отримуємо discord_id з metadata
+        # Отримуємо discord_id
         try:
+            # Перевіряємо, чи це dict або Stripe об'єкт
             if hasattr(session_obj, 'to_dict'):
                 session_dict = session_obj.to_dict()
-                print("[WEBHOOK] Converted Stripe object to dict")
             else:
                 session_dict = session_obj
-                print("[WEBHOOK] Session is already dict")
             
+            # Отримуємо metadata
             metadata = session_dict.get("metadata", {})
-            print(f"[WEBHOOK] Metadata: {metadata}")
-            
             discord_id = metadata.get("discord_id")
+            
             print(f"[WEBHOOK] Discord ID: {discord_id}")
             
             if discord_id:
+                # АКТИВУЄМО PREMIUM
+                from premium import add_premium
                 add_premium(discord_id, source="stripe")
                 print(f"[STRIPE] ✅ Premium activated for {discord_id}")
                 
+                # Відправляємо DM (через callback, якщо налаштовано)
                 if send_premium_dm_callback:
-                    print("[WEBHOOK] Calling send_premium_dm_callback")
                     send_premium_dm_callback(discord_id)
+                    print("[WEBHOOK] DM callback called")
                 else:
-                    print("[WEBHOOK] send_premium_dm_callback is None")
+                    print("[WEBHOOK] No DM callback - bot will detect on next check")
             else:
                 print("[WEBHOOK] WARNING: No discord_id in metadata")
+                
         except Exception as e:
             print(f"[WEBHOOK ERROR] Failed to extract discord_id: {e}")
             import traceback
