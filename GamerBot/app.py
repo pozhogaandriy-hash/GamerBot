@@ -256,6 +256,11 @@ def stripe_webhook():
         print(f"[WEBHOOK] Ignoring event type: {event_type}")
     
     return jsonify({"success": True})
+@app.route("/test-add-premium/<discord_id>", methods=["GET"])
+def test_add_premium(discord_id):
+    from premium import add_premium
+    add_premium(discord_id, source="test")
+    return {"success": True, "discord_id": discord_id}
 # ========== РЕЄСТРАЦІЯ BLUEPRINT ==========
 app.register_blueprint(discord_auth)
 
