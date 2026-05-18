@@ -13,6 +13,7 @@ from discord.ext import tasks
 from ai_bot import setup_ai, is_ai_channel, generate_ai_response
 from premium import add_premium, is_premium  
 from discord_auth import discord_auth
+from premium import add_premium, is_premium, get_all_premium_users
 #-------------config message cache----------------
 count_message_cache = {}
 
@@ -269,6 +270,14 @@ async def check_server_files():
                 await g.leave()
             except Exception as e:
                 logging.error(f"Failed to leave guild {g.id}: {e}")
+
+import aiohttp
+
+async def check_premium_api(discord_id):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"https://gamerbot-1x36.onrender.com/check-premium?discordId={discord_id}") as resp:
+            data = await resp.json()
+            return data.get("premium", False)
 
 # ---------------- Commands ----------------
 @bot.tree.command(name="set_word", description="📚 Set channel for the Word game")
@@ -941,61 +950,23 @@ async def on_interaction(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 #------------premium dm-----------------
+from premium import get_all_premium_users, is_premium
 
-async def send_premium_dm(discord_id):
+# Файл для збереження відправлених DM
+SENT_DM_FILE = "sent_dm.json"
 
-    try:
+def load_sent_dm():
+    if os.path.exists(SENT_DM_FILE):
+        with open(SENT_DM_FILE, "r") as f:
+            return set(json.load(f))
+    return set()
 
-        user = await bot.fetch_user(int(discord_id))
+def save_sent_dm():
+    with open(SENT_DM_FILE, "w") as f:
+        json.dump(list(sent_dm_users), f)
 
-        embed = discord.Embed(
-            title="🌟 Premium Activated",
-            description=(
-                "Дякуємо за покупку Premium!\n\n"
-                "Premium успішно активовано."
-            ),
-            color=discord.Color.gold()
-        )
-
-        await user.send(embed=embed)
-
-    except Exception as e:
-        print(f"DM ERROR: {e}")
-    
-# Додати ЦЮ функцію після send_premium_dm
-def send_premium_dm_sync(discord_id):
-    """Для виклику з API (синхронна обгортка)"""
-    import asyncio
-    asyncio.run_coroutine_threadsafe(send_premium_dm(discord_id), bot.loop)
-    
-@app.route("/activate-premium", methods=["POST"])
-def activate_premium():
-    auth = request.headers.get("Authorization")
-
-    if auth != API_KEY:
-        return {"error": "Unauthorized"}, 401
-
-    data = request.json
-    discord_id = data.get("discordId")
-
-    if not discord_id:
-        return {"error": "No discord ID"}, 400
-
-    add_premium(discord_id)
-
-    logging.info(f"Premium activated for {discord_id}")
-
-    # Відправити DM (використовуємо синхронну обгортку)
-    send_premium_dm_sync(discord_id)
-
-    return {"success": True}
-
-
-# ========== АВТОМАТИЧНА ПЕРЕВІРКА PREMIUM ==========
-from premium import get_all_premium_users
-
-# Зберігаємо ID користувачів, яким вже надіслали DM
-sent_dm_users = set()
+# Глобальна змінна
+sent_dm_users = load_sent_dm()
 
 async def send_premium_dm(discord_id: str):
     """Надсилає DM користувачу про активацію Premium"""
@@ -1014,6 +985,11 @@ async def send_premium_dm(discord_id: str):
     except Exception as e:
         logging.error(f"❌ Failed to send DM to {discord_id}: {e}")
         return False
+
+def send_premium_dm_sync(discord_id):
+    """Для виклику з API (синхронна обгортка)"""
+    import asyncio
+    asyncio.run_coroutine_threadsafe(send_premium_dm(discord_id), bot.loop)
 
 @tasks.loop(seconds=10)
 async def check_new_premium_users():
@@ -1039,19 +1015,10 @@ async def check_new_premium_users():
             logging.info(f"🎉 New premium user detected: {user_id}")
             await send_premium_dm(user_id)
             sent_dm_users.add(user_id)
+            save_sent_dm()  # ← ЗБЕРІГАЄМО ПІСЛЯ КОЖНОГО
             
     except Exception as e:
         logging.error(f"Error checking premium users: {e}")
-
-# Запускаємо перевірку при старті бота
-@bot.event
-async def on_ready():
-    # ... твій існуючий код ...
-    
-    # Запускаємо перевірку premium
-    if not check_new_premium_users.is_running():
-        check_new_premium_users.start()
-        logging.info("🔄 Premium checker started (every 10 seconds)")
 # ---------------- Run ----------------
 if __name__ == "__main__":
     if not TOKEN:
