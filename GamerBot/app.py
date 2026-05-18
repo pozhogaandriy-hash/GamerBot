@@ -10,6 +10,10 @@ load_dotenv()
 # Імпорт blueprint
 from discord_auth import discord_auth
 
+#----------------------------------
+from premium import init_db
+init_db()
+
 
 # Ініціалізація Flask
 app = Flask(__name__)
